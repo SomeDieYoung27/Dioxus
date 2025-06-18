@@ -1,28 +1,24 @@
 use dioxus::prelude::*;
-use dioxus_router::prelude::*;
-use crate::{Route, models::{AuthState, User}, utils::{load_user, clear_user}};
+use dioxus_router::prelude::{Outlet, Link};
+use crate::{Route, models::AuthState, utils::{load_user, clear_user}};
 
 #[component]
 pub fn Layout() -> Element {
-    // Global authentication state
-    let mut auth_state = use_signal(|| {
-        match load_user() {
-            Some(user) => AuthState::Authenticated(user),
-            None => AuthState::Unauthenticated,
+    let mut auth_state = use_context::<Signal<AuthState>>();
+
+    use_effect(move || {
+        if matches!(*auth_state.read(), AuthState::Unknown) {
+            let user = load_user();
+            *auth_state.write() = match user {
+                Some(u) => AuthState::Authenticated(u),
+                None => AuthState::Unknown, // Stay unknown if no user
+            };
         }
     });
 
-    // Navigation function
-    let navigator = use_navigator();
-
-    // Logout handler
-    let handle_logout = {
-        let mut auth_state = auth_state.clone();
-        move |_| {
-            clear_user();
-            auth_state.set(AuthState::Unauthenticated);
-            navigator.push(Route::Home {});
-        }
+    let handle_logout = move |_| {
+        clear_user();
+        *auth_state.write() = AuthState::Unknown;
     };
 
     rsx! {
@@ -51,34 +47,26 @@ pub fn Layout() -> Element {
                         div { 
                             class: "hidden md:flex items-center space-x-6",
                             
-                            match auth_state.read().clone() {
-                                AuthState::Authenticated(ref user) => rsx! {
-                                    Link { 
-                                        to: Route::TodoList {},
-                                        class: "text-gray-700 hover:text-blue-600 font-medium transition-colors",
-                                        "My Todos"
+                            div {
+                                class: "flex items-center space-x-4",
+                                match &*auth_state.read() {
+                                    AuthState::Authenticated(user) => rsx! {
+                                        span {
+                                            class: "text-white",
+                                            "Welcome, {user.username}"
+                                        }
+                                        button {
+                                            class: "px-4 py-2 text-sm text-white bg-red-600 hover:bg-red-700 rounded-md transition",
+                                            onclick: handle_logout,
+                                            "Logout"
+                                        }
                                     },
-                                    span { 
-                                        class: "text-gray-600",
-                                        "Welcome, {user.username}!"
-                                    },
-                                    button { 
-                                        class: "bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg font-medium transition-colors",
-                                        onclick: handle_logout,
-                                        "Logout"
-                                    }
-                                },
-                                AuthState::Unauthenticated => rsx! {
-                                    Link { 
-                                        to: Route::Login {},
-                                        class: "bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg font-medium transition-colors",
-                                        "Login"
-                                    }
-                                },
-                                AuthState::Loading => rsx! {
-                                    div { 
-                                        class: "text-gray-500",
-                                        "Loading..."
+                                    AuthState::Guest | AuthState::Unknown | AuthState::Failed => rsx! {
+                                        Link {
+                                            to: Route::LoginPage {},
+                                            class: "px-4 py-2 text-sm text-white bg-blue-600 hover:bg-blue-700 rounded-md transition",
+                                            "Login"
+                                        }
                                     }
                                 }
                             }

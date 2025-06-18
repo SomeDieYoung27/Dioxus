@@ -1,28 +1,29 @@
+use crate::{
+    components::Layout,
+    models::AuthState,
+    utils::load_user,
+    Route,
+};
 use dioxus::prelude::*;
-use dioxus_router::prelude::*;
-use crate::{Route, models::AuthState, utils::load_user};
+use dioxus_router::hooks::use_navigator;
 
 #[component]
 pub fn Home() -> Element {
+    let mut auth_state = use_context::<Signal<AuthState>>();
     let navigator = use_navigator();
-    
-    // Check authentication status
-    let auth_state = use_signal(|| {
-        match load_user() {
-            Some(user) => AuthState::Authenticated(user),
-            None => AuthState::Unauthenticated,
+
+    use_effect(move || {
+        if matches!(*auth_state.read(), AuthState::Unknown) {
+            if let Some(user) = load_user() {
+                *auth_state.write() = AuthState::Authenticated(user);
+            } else {
+                *auth_state.write() = AuthState::Guest;
+            }
         }
     });
 
-    let handle_get_started = move |_| {
-        match auth_state.read().clone() {
-            AuthState::Authenticated(_) => navigator.push(Route::TodoList {}),
-            _ => navigator.push(Route::Login {}),
-        }
-    };
-
     rsx! {
-        div { 
+        div {
             class: "min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100",
             
             // Hero Section
@@ -55,18 +56,15 @@ pub fn Home() -> Element {
                         
                         button { 
                             class: "bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-8 rounded-lg text-lg transition-colors shadow-lg hover:shadow-xl",
-                            onclick: handle_get_started,
-                            
-                            match auth_state.read().clone() {
-                                AuthState::Authenticated(_) => "Go to My Todos",
-                                _ => "Get Started"
-                            }
+                            onclick: move |_| {
+                                navigator.push(Route::TodoList {});
+                            },
+                            "Get Started"
                         },
                         
-                        Link { 
-                            to: "https://dioxuslabs.com/learn/0.6/guide/",
+                        a {
+                            href: "https://dioxuslabs.com/learn/0.6/guide/",
                             class: "text-blue-600 hover:text-blue-800 font-semibold text-lg underline transition-colors",
-                            target: "_blank",
                             "Learn about Dioxus →"
                         }
                     }
@@ -205,14 +203,15 @@ pub fn Home() -> Element {
                         
                         button { 
                             class: "bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-6 rounded-lg transition-colors",
-                            onclick: handle_get_started,
+                            onclick: move |_| {
+                                navigator.push(Route::TodoList {});
+                            },
                             "Try the App"
                         },
                         
-                        Link { 
-                            to: "https://github.com/DioxusLabs/dioxus",
+                        a {
+                            href: "https://github.com/DioxusLabs/dioxus",
                             class: "bg-gray-800 hover:bg-gray-900 text-white font-semibold py-3 px-6 rounded-lg transition-colors",
-                            target: "_blank",
                             "View Source on GitHub"
                         }
                     }

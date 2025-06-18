@@ -1,17 +1,18 @@
 use dioxus::prelude::*;
-use dioxus_router::prelude::*;
 use uuid::Uuid;
 use reqwest;
+use serde_json::json;
+use std::future::Future;
+use dioxus_router::prelude::Link;
 
 use crate::{
     Route,
-    models::{Todo, Priority, TodoForm},
-    components::{TodoItem, TodoForm as TodoFormComponent},
+    models::{Todo, TodoForm},
+    components::{TodoItem, TodoForm as TodoFormComponent, Layout},
+    utils::API_URL,
 };
 
-const API_URL: &str = "http://localhost:3000/api";
-
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Copy)]
 enum FilterState {
     All,
     Active,
@@ -25,10 +26,11 @@ enum ViewState {
     EditForm(Uuid),
 }
 
-async fn fetch_todos() -> Result<Vec<Todo>, reqwest::Error> {
-    let url = format!("{}/todos", API_URL);
-    let todos = reqwest::get(&url).await?.json::<Vec<Todo>>().await?;
-    Ok(todos)
+fn fetch_todos() -> impl Future<Output = Result<Vec<Todo>, reqwest::Error>> {
+    async move {
+        let url = format!("{}/todos", API_URL);
+        reqwest::get(&url).await?.json::<Vec<Todo>>().await
+    }
 }
 
 #[component]
@@ -53,15 +55,13 @@ pub fn TodoList() -> Element {
         spawn(async move {
             let client = reqwest::Client::new();
             let url = format!("{}/todos", API_URL);
-            let mut new_todo = serde_json::json!({
+            let new_todo = json!({
                 "title": form.title,
                 "priority": form.priority,
+                "description": if form.description.is_empty() { None } else { Some(form.description) }
             });
-            if !form.description.is_empty() {
-                new_todo["description"] = serde_json::Value::String(form.description);
-            }
 
-            if let Ok(_) = client.post(&url).json(&new_todo).send().await {
+            if client.post(&url).json(&new_todo).send().await.is_ok() {
                 todos.restart();
             }
             view.set(ViewState::List);
@@ -72,15 +72,13 @@ pub fn TodoList() -> Element {
         spawn(async move {
             let client = reqwest::Client::new();
             let url = format!("{}/todos/{}", API_URL, id);
-            let mut updated_todo = serde_json::json!({
+            let updated_todo = json!({
                 "title": form.title,
                 "priority": form.priority,
+                "description": if form.description.is_empty() { None } else { Some(form.description) }
             });
-             if !form.description.is_empty() {
-                updated_todo["description"] = serde_json::Value::String(form.description);
-            }
 
-            if let Ok(_) = client.put(&url).json(&updated_todo).send().await {
+            if client.put(&url).json(&updated_todo).send().await.is_ok() {
                 todos.restart();
             }
             view.set(ViewState::List);
@@ -104,8 +102,8 @@ pub fn TodoList() -> Element {
                 spawn(async move {
                     let client = reqwest::Client::new();
                     let url = format!("{}/todos/{}", API_URL, id);
-                    let updated_todo = serde_json::json!({ "completed": new_completed_status });
-                    if let Ok(_) = client.put(&url).json(&updated_todo).send().await {
+                    let updated_todo = json!({ "completed": new_completed_status });
+                    if client.put(&url).json(&updated_todo).send().await.is_ok() {
                         todos.restart();
                     }
                 });
@@ -181,7 +179,7 @@ pub fn TodoList() -> Element {
                                         // List of todos
                                         ul {
                                             class: "space-y-3",
-                                            for todo in filtered_todos.read().iter() {
+                                            for todo in filtered_todos.read().iter().cloned() {
                                                 TodoItem {
                                                     key: "{todo.id}",
                                                     todo: todo.clone(),
@@ -212,6 +210,7 @@ pub fn TodoList() -> Element {
                              if let Some(Ok(todos_vec)) = todos.read().as_ref() {
                                 if let Some(todo) = todos_vec.iter().find(|t| t.id == id).cloned() {
                                     let initial_value = TodoForm {
+                                        id: Some(todo.id),
                                         title: todo.title.clone(),
                                         description: todo.description.clone().unwrap_or_default(),
                                         priority: todo.priority,

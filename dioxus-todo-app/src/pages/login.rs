@@ -1,15 +1,20 @@
 use dioxus::prelude::*;
-use dioxus_router::prelude::*;
+use dioxus_router::hooks::use_navigator;
+use dioxus_router::prelude::Link;
 use crate::{Route, models::LoginForm, utils::authenticate_user};
+use crate::{
+    models::{Credentials, AuthState},
+    utils::login_user,
+};
 
 #[component]
-pub fn Login() -> Element {
-    let navigator = use_navigator();
-    
-    // Form state
+pub fn LoginPage() -> Element {
     let mut form = use_signal(LoginForm::default);
-    let mut error_message = use_signal(|| None::<String>);
-    let mut is_submitting = use_signal(|| false);
+    let error_message = use_signal(|| None::<String>);
+    let is_submitting = use_signal(|| false);
+    let mut creds = use_signal(Credentials::default);
+    let navigator = use_navigator();
+    let mut auth_state = use_context::<Signal<AuthState>>();
 
     // Form handlers
     let handle_username_change = {
@@ -26,33 +31,25 @@ pub fn Login() -> Element {
         }
     };
 
-    let handle_submit = {
-        let form = form.clone();
-        let mut error_message = error_message.clone();
-        let mut is_submitting = is_submitting.clone();
-        let navigator = navigator.clone();
-        
-        move |evt: FormEvent| {
-            evt.prevent_default();
-            
-            let current_form = form.read();
-            
-            // Clear previous errors
-            error_message.set(None);
-            is_submitting.set(true);
-            
-            // Attempt authentication
-            match authenticate_user(&current_form.username, &current_form.password) {
-                Ok(_user) => {
-                    // Redirect to todos page on successful login
-                    navigator.push(Route::TodoList {});
-                },
-                Err(err) => {
-                    error_message.set(Some(err));
-                    is_submitting.set(false);
+    let handle_login = move |_evt: FormEvent| {
+        let form_data = form.write();
+        creds.write().username = form_data.username.clone();
+        creds.write().password = form_data.password.clone();
+        spawn({
+            let creds = creds.read().clone();
+            async move {
+                match login_user(creds).await {
+                    Ok(user) => {
+                        *auth_state.write() = AuthState::Authenticated(user);
+                        navigator.push(Route::TodoList {});
+                    }
+                    Err(e) => {
+                        log::error!("Login failed: {}", e);
+                        *auth_state.write() = AuthState::Failed;
+                    }
                 }
             }
-        }
+        });
     };
 
     rsx! {
@@ -84,7 +81,7 @@ pub fn Login() -> Element {
                     // Login form
                     form { 
                         class: "space-y-6",
-                        onsubmit: handle_submit,
+                        onsubmit: handle_login,
                         
                         // Username field
                         div {

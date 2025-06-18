@@ -1,6 +1,9 @@
-use crate::models::{Todo, User};
+use crate::models::{Todo, User, Credentials};
 use gloo_storage::{LocalStorage, Storage};
 use uuid::Uuid;
+use reqwest;
+
+pub const API_URL: &str = "http://localhost:3000/api";
 
 const TODOS_STORAGE_KEY: &str = "dioxus_todos";
 const USER_STORAGE_KEY: &str = "dioxus_user";
@@ -11,10 +14,15 @@ pub fn save_todos(todos: &[Todo]) -> Result<(), String> {
         .map_err(|e| format!("Failed to save todos: {}", e))
 }
 
-pub fn load_todos() -> Result<Vec<Todo>, String> {
-    LocalStorage::get(TODOS_STORAGE_KEY)
-        .unwrap_or_else(|_| Ok(Vec::new()))
-        .map_err(|e| format!("Failed to load todos: {}", e))
+pub async fn load_todos() -> Result<Vec<Todo>, String> {
+    let client = reqwest::Client::new();
+    client.get(format!("{}/todos", API_URL))
+        .send()
+        .await
+        .map_err(|e| e.to_string())?
+        .json::<Vec<Todo>>()
+        .await
+        .map_err(|e| e.to_string())
 }
 
 pub fn clear_todos() -> Result<(), String> {
@@ -66,4 +74,23 @@ pub fn validate_todo_title(title: &str) -> Result<(), String> {
 
 pub fn validate_email(email: &str) -> bool {
     email.contains('@') && email.contains('.')
+}
+
+pub async fn login_user(creds: Credentials) -> Result<User, String> {
+    let client = reqwest::Client::new();
+    let res = client.post(format!("{}/login", API_URL))
+        .json(&creds)
+        .send()
+        .await
+        .map_err(|e| e.to_string())?;
+
+    if res.status().is_success() {
+        let user = res.json::<User>().await.map_err(|e| e.to_string())?;
+        if let Err(e) = save_user(&user) {
+            return Err(e);
+        }
+        Ok(user)
+    } else {
+        Err(res.text().await.map_err(|e| e.to_string())?)
+    }
 } 

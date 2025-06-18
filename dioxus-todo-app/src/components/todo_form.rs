@@ -12,14 +12,11 @@ pub struct TodoFormProps {
 
 #[component]
 pub fn TodoForm(props: TodoFormProps) -> Element {
-    // Form state
-    let mut form = use_signal(|| {
-        props.initial_form.clone().unwrap_or_default()
-    });
-    
-    // Validation state
+    let mut form = use_signal(TodoForm::default);
     let mut title_error = use_signal(|| None::<String>);
     let mut is_submitting = use_signal(|| false);
+    let api_client = reqwest::Client::new();
+    let user_id = "some-user-id"; // TODO: get from auth context
 
     // Form handlers
     let handle_title_change = {
@@ -57,27 +54,33 @@ pub fn TodoForm(props: TodoFormProps) -> Element {
         }
     };
 
-    let handle_submit = {
-        let form = form.clone();
-        let mut title_error = title_error.clone();
-        let mut is_submitting = is_submitting.clone();
-        move |evt: FormEvent| {
-            evt.prevent_default();
-            
-            let current_form = form.read();
-            
-            // Validate before submit
-            match validate_todo_title(&current_form.title) {
-                Ok(_) => {
-                    is_submitting.set(true);
-                    props.on_submit.call(current_form.clone());
-                    is_submitting.set(false);
-                },
-                Err(err) => {
-                    title_error.set(Some(err));
-                }
-            }
+    let mut validate_form = move || -> bool {
+        let mut valid = true;
+        let form_data = form.read();
+        if form_data.title.is_empty() {
+            *title_error.write() = Some("Title is required".to_string());
+            valid = false;
+        } else {
+            *title_error.write() = None;
         }
+        valid
+    };
+
+    let submit_handler = move |_evt: FormEvent| {
+        if !validate_form() || *is_submitting.read() {
+            return;
+        }
+        spawn({
+            let new_todo = form();
+            async move {
+                *is_submitting.write() = true;
+                // ... api call ...
+                *is_submitting.write() = false;
+                form.set(TodoForm::default());
+            }
+        });
+        let new_todo = form();
+        props.on_submit.call(new_todo);
     };
 
     rsx! {
@@ -95,7 +98,7 @@ pub fn TodoForm(props: TodoFormProps) -> Element {
             
             form { 
                 class: "space-y-4",
-                onsubmit: handle_submit,
+                onsubmit: submit_handler,
                 
                 // Title field
                 div {

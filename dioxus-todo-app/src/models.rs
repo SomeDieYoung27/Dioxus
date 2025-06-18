@@ -1,6 +1,7 @@
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
+use std::fmt::{Display, Formatter, Result as FmtResult};
 
 // Todo item model
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -15,20 +16,16 @@ pub struct Todo {
     pub priority: Priority,
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, serde::Serialize, serde::Deserialize)]
 pub enum Priority {
     Low,
     Medium,
     High,
 }
 
-impl std::fmt::Display for Priority {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Priority::Low => write!(f, "Low"),
-            Priority::Medium => write!(f, "Medium"),
-            Priority::High => write!(f, "High"),
-        }
+impl Display for Priority {
+    fn fmt(&self, f: &mut Formatter<'_>) -> FmtResult {
+        write!(f, "{:?}", self)
     }
 }
 
@@ -42,11 +39,13 @@ pub struct User {
 }
 
 // Authentication state
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Default, Clone, PartialEq)]
 pub enum AuthState {
-    Loading,
+    #[default]
+    Unknown,
     Authenticated(User),
-    Unauthenticated,
+    Guest,
+    Failed,
 }
 
 // Form models
@@ -56,8 +55,15 @@ pub struct LoginForm {
     pub password: String,
 }
 
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Default, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
+pub struct Credentials {
+    pub username: String,
+    pub password: String,
+}
+
+#[derive(Debug, Default, Clone, PartialEq)]
 pub struct TodoForm {
+    pub id: Option<Uuid>,
     pub title: String,
     pub description: String,
     pub priority: Priority,

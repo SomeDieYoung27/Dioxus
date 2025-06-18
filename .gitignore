@@ -1,0 +1,17 @@
+# Rust
+target/
+Cargo.lock
+# SQLite
+*.sqlite
+*.sqlite-shm
+*.sqlite-wal
+# IDE / Editor specific
+.vscode/
+.idea/
+*.suo
+*.user
+*.sln
+*.ncb
+# OS specific
+.DS_Store
+Thumbs.db 

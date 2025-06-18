@@ -13,7 +13,7 @@ impl AuthContext {
         let auth_state = use_signal(|| {
             match load_user() {
                 Some(user) => AuthState::Authenticated(user),
-                None => AuthState::Unauthenticated,
+                None => AuthState::Unknown,
             }
         });
 
@@ -28,7 +28,7 @@ impl AuthContext {
 
     pub fn logout(&mut self) {
         clear_user();
-        self.auth_state.set(AuthState::Unauthenticated);
+        self.auth_state.set(AuthState::Unknown);
     }
 
     pub fn is_authenticated(&self) -> bool {
