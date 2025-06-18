@@ -1,12 +1,11 @@
 use sqlx::{sqlite::SqlitePoolOptions, SqlitePool};
 use std::env;
-use dotenvy::dotenv;
 use tracing::info;
 
 pub type DB = SqlitePool;
 
 pub async fn init_db() -> Result<DB, sqlx::Error> {
-    dotenv().ok();
+    dotenvy::from_path("server/.env").ok();
     let db_url = env::var("DATABASE_URL").expect("DATABASE_URL must be set");
     
     info!("Connecting to database: {}", db_url);

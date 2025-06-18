@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "UPDATE todos SET title = $1, description = $2, completed = $3, priority = $4, updated_at = $5 WHERE id = $6",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 6
+    },
+    "nullable": []
+  },
+  "hash": "2d5cfaae2fce6e1541b31719596f69761b242fa6c4df3aa26d450cd574ad0607"
+}

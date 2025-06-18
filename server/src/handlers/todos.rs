@@ -9,7 +9,7 @@ use axum::{
     Json,
 };
 use uuid::Uuid;
-use chrono::Utc;
+use chrono::{DateTime, Utc};
 
 // A dummy user ID for now. In a real app, this would come from an authenticated session.
 const DUMMY_USER_ID: &str = "a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11";
@@ -17,7 +17,7 @@ const DUMMY_USER_ID: &str = "a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11";
 pub async fn all_todos(State(db): State<DB>) -> Result<Json<Vec<Todo>>, AppError> {
     let todos = sqlx::query_as!(
         Todo,
-        r#"SELECT id, user_id, title, description, completed, priority as "priority: _", created_at, updated_at FROM todos WHERE user_id = $1"#,
+        r#"SELECT id as "id: Uuid", user_id as "user_id: Uuid", title, description, completed, priority as "priority: Priority", created_at as "created_at: DateTime<Utc>", updated_at as "updated_at: DateTime<Utc>" FROM todos WHERE user_id = $1"#,
         DUMMY_USER_ID
     )
     .fetch_all(&db)
@@ -29,10 +29,11 @@ pub async fn get_todo(
     State(db): State<DB>,
     Path(id): Path<Uuid>,
 ) -> Result<Json<Todo>, AppError> {
+    let id_str = id.to_string();
     let todo = sqlx::query_as!(
         Todo,
-        r#"SELECT id, user_id, title, description, completed, priority as "priority: _", created_at, updated_at FROM todos WHERE id = $1 AND user_id = $2"#,
-        id.to_string(),
+        r#"SELECT id as "id: Uuid", user_id as "user_id: Uuid", title, description, completed, priority as "priority: Priority", created_at as "created_at: DateTime<Utc>", updated_at as "updated_at: DateTime<Utc>" FROM todos WHERE id = $1 AND user_id = $2"#,
+        id_str,
         DUMMY_USER_ID
     )
     .fetch_one(&db)
@@ -46,6 +47,7 @@ pub async fn create_todo(
     Json(payload): Json<CreateTodo>,
 ) -> Result<(StatusCode, Json<Todo>), AppError> {
     let id = Uuid::new_v4();
+    let id_str = id.to_string();
     let now = Utc::now();
     let priority_str = match payload.priority {
         Priority::Low => "low",
@@ -55,7 +57,7 @@ pub async fn create_todo(
 
     sqlx::query!(
         "INSERT INTO todos (id, user_id, title, description, priority, created_at, updated_at) VALUES ($1, $2, $3, $4, $5, $6, $7)",
-        id.to_string(),
+        id_str,
         DUMMY_USER_ID,
         payload.title,
         payload.description,
@@ -68,8 +70,8 @@ pub async fn create_todo(
 
     let todo = sqlx::query_as!(
         Todo,
-        r#"SELECT id, user_id, title, description, completed, priority as "priority: _", created_at, updated_at FROM todos WHERE id = $1"#,
-        id.to_string()
+        r#"SELECT id as "id: Uuid", user_id as "user_id: Uuid", title, description, completed, priority as "priority: Priority", created_at as "created_at: DateTime<Utc>", updated_at as "updated_at: DateTime<Utc>" FROM todos WHERE id = $1"#,
+        id_str
     )
     .fetch_one(&db)
     .await?;
@@ -82,10 +84,11 @@ pub async fn update_todo(
     Path(id): Path<Uuid>,
     Json(payload): Json<UpdateTodo>,
 ) -> Result<Json<Todo>, AppError> {
+    let id_str = id.to_string();
     let todo = sqlx::query_as!(
         Todo,
-        r#"SELECT id, user_id, title, description, completed, priority as "priority: _", created_at, updated_at FROM todos WHERE id = $1 AND user_id = $2"#,
-        id.to_string(),
+        r#"SELECT id as "id: Uuid", user_id as "user_id: Uuid", title, description, completed, priority as "priority: Priority", created_at as "created_at: DateTime<Utc>", updated_at as "updated_at: DateTime<Utc>" FROM todos WHERE id = $1 AND user_id = $2"#,
+        id_str,
         DUMMY_USER_ID
     )
     .fetch_one(&db)
@@ -110,15 +113,15 @@ pub async fn update_todo(
         completed,
         priority_str,
         now,
-        id.to_string()
+        id_str
     )
     .execute(&db)
     .await?;
 
     let updated_todo = sqlx::query_as!(
         Todo,
-        r#"SELECT id, user_id, title, description, completed, priority as "priority: _", created_at, updated_at FROM todos WHERE id = $1"#,
-        id.to_string()
+        r#"SELECT id as "id: Uuid", user_id as "user_id: Uuid", title, description, completed, priority as "priority: Priority", created_at as "created_at: DateTime<Utc>", updated_at as "updated_at: DateTime<Utc>" FROM todos WHERE id = $1"#,
+        id_str
     )
     .fetch_one(&db)
     .await?;
@@ -130,9 +133,10 @@ pub async fn delete_todo(
     State(db): State<DB>,
     Path(id): Path<Uuid>,
 ) -> Result<StatusCode, AppError> {
+    let id_str = id.to_string();
     let rows_affected = sqlx::query!(
         "DELETE FROM todos WHERE id = $1 AND user_id = $2",
-        id.to_string(),
+        id_str,
         DUMMY_USER_ID
     )
     .execute(&db)

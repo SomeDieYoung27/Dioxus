@@ -1,0 +1,76 @@
+{
+  "db": "sqlite",
+  "tables": {
+    "users": {
+      "columns": [
+        {
+          "name": "id",
+          "type_info": "TEXT",
+          "nullable": false
+        },
+        {
+          "name": "username",
+          "type_info": "TEXT",
+          "nullable": false
+        },
+        {
+          "name": "password_hash",
+          "type_info": "TEXT",
+          "nullable": false
+        },
+        {
+          "name": "created_at",
+          "type_info": "TIMESTAMP",
+          "nullable": false
+        }
+      ]
+    },
+    "todos": {
+      "columns": [
+        {
+          "name": "id",
+          "type_info": "TEXT",
+          "nullable": false
+        },
+        {
+          "name": "user_id",
+          "type_info": "TEXT",
+          "nullable": false
+        },
+        {
+          "name": "title",
+          "type_info": "TEXT",
+          "nullable": false
+        },
+        {
+          "name": "description",
+          "type_info": "TEXT",
+          "nullable": true
+        },
+        {
+          "name": "completed",
+          "type_info": "BOOLEAN",
+          "nullable": false
+        },
+        {
+          "name": "priority",
+          "type_info": "TEXT",
+          "nullable": false
+        },
+        {
+          "name": "created_at",
+          "type_info": "TIMESTAMP",
+          "nullable": false
+        },
+        {
+          "name": "updated_at",
+          "type_info": "TIMESTAMP",
+          "nullable": false
+        }
+      ]
+    }
+  },
+  "enums": {
+      "priority": ["low", "medium", "high"]
+  }
+} 

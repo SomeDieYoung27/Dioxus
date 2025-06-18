@@ -5,7 +5,7 @@ use crate::{
 };
 use axum::{extract::State, http::StatusCode, Json};
 use uuid::Uuid;
-use chrono::Utc;
+use chrono::{DateTime, Utc};
 
 pub async fn register(
     State(db): State<DB>,
@@ -37,7 +37,7 @@ pub async fn login(
 ) -> Result<Json<AuthResponse>, AppError> {
     let user: Option<User> = sqlx::query_as!(
         User,
-        "SELECT id, username, password_hash, created_at FROM users WHERE username = $1",
+        r#"SELECT id as "id: Uuid", username, password_hash, created_at as "created_at: DateTime<Utc>" FROM users WHERE username = $1"#,
         payload.username
     )
     .fetch_optional(&db)

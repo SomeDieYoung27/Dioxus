@@ -13,7 +13,7 @@ use handlers::{
 };
 use db::init_db;
 use tower_http::cors::CorsLayer;
-use axum::routing::{post, put, delete};
+use axum::routing::post;
 use std::net::SocketAddr;
 use tracing::info;
 
