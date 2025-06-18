@@ -1,0 +1,23 @@
+# Stage 1: Build the application
+FROM rust:1.78 as builder
+
+# Create a new empty shell project
+WORKDIR /usr/src/app
+COPY . .
+
+# Build the server binary
+RUN --mount=type=cache,target=/usr/local/cargo/registry \
+    --mount=type=cache,target=target \
+    cd server && cargo build --release && \
+    cp target/release/server ../server-binary
+
+# Stage 2: Create the final, smaller image
+FROM debian:bullseye-slim
+RUN apt-get update && apt-get install -y libssl-dev && rm -rf /var/lib/apt/lists/*
+COPY --from=builder /usr/src/app/server-binary /usr/local/bin/server
+COPY server/.env /usr/local/bin/.env
+COPY server/migrations /usr/local/bin/migrations
+
+EXPOSE 3000
+
+CMD ["/usr/local/bin/server"] 

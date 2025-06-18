@@ -1,0 +1,28 @@
+# Stage 1: Build the wasm application
+FROM rust:1.78 as builder
+
+# Install dioxus-cli
+RUN cargo install dioxus-cli
+
+# Copy the frontend app
+WORKDIR /usr/src/app
+COPY dioxus-todo-app /usr/src/app/dioxus-todo-app
+COPY Cargo.toml Cargo.lock /usr/src/app/
+COPY . /usr/src/app
+
+# Build the wasm files
+RUN --mount=type=cache,target=/usr/local/cargo/registry \
+    --mount=type=cache,target=target \
+    cd dioxus-todo-app && dioxus build --release
+
+# Stage 2: Serve the static files with nginx
+FROM nginx:1.25-alpine
+
+# Copy the built assets
+COPY --from=builder /usr/src/app/dioxus-todo-app/dist /usr/share/nginx/html
+
+# Expose port 80
+EXPOSE 80
+
+# Start nginx
+CMD ["nginx", "-g", "daemon off;"] 

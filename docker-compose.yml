@@ -1,0 +1,23 @@
+services:
+  server:
+    build:
+      context: .
+      dockerfile: Dockerfile.server
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./server/db.sqlite:/usr/local/bin/db.sqlite
+    environment:
+      - DATABASE_URL=sqlite:/usr/local/bin/db.sqlite
+      - RUST_LOG=info
+
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile.frontend
+    ports:
+      - "8080:80"
+    depends_on:
+      - server
+volumes:
+  db_data: 
